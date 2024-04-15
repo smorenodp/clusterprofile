@@ -53,7 +53,9 @@ func main() {
 		if clusterConfig, ok := profiles[c.Vault.PivotProfile]; !ok {
 			log.Fatalf("Error loading profile pivoting %s in profile %s configuration", c.Vault.PivotProfile, c.Name)
 		} else {
-			client.WithPivotRole(clusterConfig.Vault, creds[c.Vault.PivotProfile]).GenerateCreds()
+			client = client.WithPivotRole(clusterConfig.Vault, creds[c.Vault.PivotProfile])
+			creds[c.Vault.PivotProfile] = client.ProfileCreds()
+			client.GenerateCreds()
 		}
 	} else {
 		client.GenerateCreds()
