@@ -69,7 +69,6 @@ func (p *NomadProvider) credsFromToken() (string, error) {
 }
 
 func (p *NomadProvider) GenerateCreds() (string, error) {
-	fmt.Printf("%+v\n", p)
 	switch p.config.Method {
 	case "role":
 		return p.credsFromRole()
