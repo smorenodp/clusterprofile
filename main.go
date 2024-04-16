@@ -76,12 +76,14 @@ func main() {
 		profileCreds = append(profileCreds, provider.ProfileCreds()...)
 	}
 	creds[profileName] = profileCreds
-	if echo {
-		config.GenerateExportContent(profileName, exportCreds)
-	}
-	config.CreateExecFile(execFile, profileName, exportCreds)
+
 	if err = config.SaveCreds(credsFile, creds); err != nil {
 		log.Fatalf("Error saving credentials in %s - %s", credsFile, err)
 	}
 
+	if echo {
+		config.GenerateExportContent(profileName, exportCreds)
+	} else {
+		config.CreateExecFile(execFile, profileName, exportCreds)
+	}
 }
