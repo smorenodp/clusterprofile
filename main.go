@@ -10,6 +10,10 @@ import (
 	"github.com/smorenodp/clusterprofile/providers"
 )
 
+const (
+	clusterProfileEnv = "CLUSTERID_PROFILE"
+)
+
 func getOrElse(env, valueDefault string) string {
 	if value := os.Getenv("env"); value == "" {
 		return valueDefault
@@ -22,7 +26,7 @@ func main() {
 	var configFolder, credsFile, profileName, execFile string
 	var echo bool
 	var client *providers.VaultClient
-	var profileCreds, exportCreds []string
+	var profileCreds []string
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -64,6 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Vault creation failed")
 	}
+	exportCreds := []string{fmt.Sprintf("export %s=%s", clusterProfileEnv, profileName)}
 	profileCreds = client.ProfileCreds()
 	exportCreds = client.ExportCreds()
 	for _, p := range c.Providers {
