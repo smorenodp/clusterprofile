@@ -3,8 +3,13 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	yamlRegex = ".*\\.yaml"
 )
 
 type InnerProviderConfig struct {
@@ -35,23 +40,25 @@ type ClusterConfig struct {
 }
 
 func ReadConfig(folder string) (config map[string]ClusterConfig, err error) {
+	fileRegex := regexp.MustCompile(yamlRegex)
 	var content []byte
 	var profileConfig []ClusterConfig
 	config = make(map[string]ClusterConfig)
 	profiles, _ := os.ReadDir(folder)
 	for _, f := range profiles {
-		content, err = os.ReadFile(fmt.Sprintf("%s/%s", folder, f.Name()))
-		if err != nil {
-			return
+		if fileRegex.MatchString(f.Name()) {
+			content, err = os.ReadFile(fmt.Sprintf("%s/%s", folder, f.Name()))
+			if err != nil {
+				return
+			}
+			err = yaml.Unmarshal(content, &profileConfig)
+			if err != nil {
+				return
+			}
+			for _, p := range profileConfig {
+				config[p.Name] = p
+			}
 		}
-		err = yaml.Unmarshal(content, &profileConfig)
-		if err != nil {
-			return
-		}
-		for _, p := range profileConfig {
-			config[p.Name] = p
-		}
-
 	}
 	return
 }
