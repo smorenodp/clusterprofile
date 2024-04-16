@@ -27,6 +27,7 @@ func main() {
 	var echo bool
 	var client *providers.VaultClient
 	var profileCreds []string
+	errorLog := log.New(os.Stderr, "", 0)
 
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -73,12 +74,16 @@ func main() {
 	exportCreds = client.ExportCreds()
 	for _, p := range c.Providers {
 		provider := providers.NewProvider(client, p)
-		provider.LoadProfileCreds(creds[profileName])
-		if !provider.CredsLoaded() {
-			provider.GenerateCreds()
+		if provider != nil {
+			provider.LoadProfileCreds(creds[profileName])
+			if !provider.CredsLoaded() {
+				provider.GenerateCreds()
+			}
+			exportCreds = append(exportCreds, provider.ExportCreds()...)
+			profileCreds = append(profileCreds, provider.ProfileCreds()...)
+		} else {
+			errorLog.Println("Provider of type %s not implemented\n", p.Type)
 		}
-		exportCreds = append(exportCreds, provider.ExportCreds()...)
-		profileCreds = append(profileCreds, provider.ProfileCreds()...)
 	}
 	creds[profileName] = profileCreds
 

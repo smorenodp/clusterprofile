@@ -18,6 +18,8 @@ type InnerProviderConfig struct {
 	Policies   []string          `yaml:"policies"`
 	SecretPath string            `yaml:"path"`
 	SecretMap  map[string]string `yaml:"secret_map"`
+	File       string            `yaml:"file"`
+	Data       string            `yaml:"data"`
 }
 
 type ProviderConfig struct {
