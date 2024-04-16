@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 )
@@ -10,6 +11,11 @@ type ExecFile struct {
 	Profile       string
 	Creds         []string
 	BannerCommand string
+}
+
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
 }
 
 const (
@@ -22,7 +28,7 @@ const (
 {{ . }}
 {{ end }}
 `
-	bannerCommand = "figlet"
+	bannerCommand = "testasta"
 )
 
 func createDirectory(file string) {
@@ -37,7 +43,7 @@ func CreateExecFile(execFile string, profile string, creds []string, banner bool
 	f, _ := os.OpenFile(execFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	tpl, _ := template.New("exec").Parse(templateFile)
 	exec := ExecFile{Profile: profile, Creds: creds}
-	if banner {
+	if banner && commandExists(bannerCommand) {
 		exec.BannerCommand = bannerCommand
 	}
 	tpl.Execute(f, exec)
@@ -46,7 +52,7 @@ func CreateExecFile(execFile string, profile string, creds []string, banner bool
 func GenerateExportContent(profile string, creds []string, banner bool) {
 	tpl, _ := template.New("exec").Parse(templateFile)
 	exec := ExecFile{Profile: profile, Creds: creds}
-	if banner {
+	if banner && commandExists(bannerCommand) {
 		exec.BannerCommand = bannerCommand
 	}
 	tpl.Execute(os.Stdout, exec)

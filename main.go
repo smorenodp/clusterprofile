@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 
 	"github.com/smorenodp/clusterprofile/config"
 	"github.com/smorenodp/clusterprofile/providers"
@@ -14,11 +13,6 @@ import (
 const (
 	clusterProfileEnv = "CLUSTERID_PROFILE"
 )
-
-func commandExists(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
-}
 
 func getOrElse(env, valueDefault string) string {
 	if value := os.Getenv("env"); value == "" {
