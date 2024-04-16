@@ -7,18 +7,22 @@ import (
 )
 
 type ExecFile struct {
-	Profile string
-	Creds   []string
+	Profile       string
+	Creds         []string
+	BannerCommand string
 }
 
 const (
 	templateFile string = `
 #!/bin/bash
-echo "Loading {{ .Profile }} credentials"
+{{ if ne .BannerCommand "" }}
+{{ .BannerCommand }} {{ .Profile }} && echo
+{{ end }}
 {{ range .Creds }}
 {{ . }}
 {{ end }}
 `
+	bannerCommand = "figlet"
 )
 
 func createDirectory(file string) {
@@ -28,14 +32,22 @@ func createDirectory(file string) {
 	}
 }
 
-func CreateExecFile(execFile string, profile string, creds []string) {
+func CreateExecFile(execFile string, profile string, creds []string, banner bool) {
 	createDirectory(execFile)
 	f, _ := os.OpenFile(execFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	tpl, _ := template.New("exec").Parse(templateFile)
-	tpl.Execute(f, ExecFile{profile, creds})
+	exec := ExecFile{Profile: profile, Creds: creds}
+	if banner {
+		exec.BannerCommand = bannerCommand
+	}
+	tpl.Execute(f, exec)
 }
 
-func GenerateExportContent(profile string, creds []string) {
+func GenerateExportContent(profile string, creds []string, banner bool) {
 	tpl, _ := template.New("exec").Parse(templateFile)
-	tpl.Execute(os.Stdout, ExecFile{profile, creds})
+	exec := ExecFile{Profile: profile, Creds: creds}
+	if banner {
+		exec.BannerCommand = bannerCommand
+	}
+	tpl.Execute(os.Stdout, exec)
 }
