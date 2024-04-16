@@ -7,14 +7,14 @@ import (
 )
 
 type ExecFile struct {
-	Cluster string
+	Profile string
 	Creds   []string
 }
 
 const (
 	templateFile string = `
 #!/bin/bash
-echo "Loading {{ .Cluster }} credentials"
+echo "Loading {{ .Profile }} credentials"
 {{ range .Creds }}
 {{ . }}
 {{ end }}
@@ -28,10 +28,14 @@ func createDirectory(file string) {
 	}
 }
 
-func CreateExecFile(execFile string, cluster string, creds []string) {
-
+func CreateExecFile(execFile string, profile string, creds []string) {
 	createDirectory(execFile)
 	f, _ := os.OpenFile(execFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	tpl, _ := template.New("exec").Parse(templateFile)
-	tpl.Execute(f, ExecFile{cluster, creds})
+	tpl.Execute(f, ExecFile{profile, creds})
+}
+
+func GenerateExportContent(profile string, creds []string) {
+	tpl, _ := template.New("exec").Parse(templateFile)
+	tpl.Execute(os.Stdout, ExecFile{profile, creds})
 }

@@ -20,7 +20,7 @@ func getOrElse(env, valueDefault string) string {
 
 func main() {
 	var configFolder, credsFile, profileName, execFile string
-
+	var echo bool
 	var client *providers.VaultClient
 	var profileCreds, exportCreds []string
 
@@ -32,6 +32,7 @@ func main() {
 	flag.StringVar(&credsFile, "creds", getOrElse("CLUSTERID_PROFILE_FILE", fmt.Sprintf("%s/.clusterid/credentials", home)), "Creds file for program.")
 	flag.StringVar(&execFile, "exec", getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)), "Bash file to export the configuration for the profile.")
 	flag.StringVar(&profileName, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
+	flag.BoolVar(&echo, "echo", false, "Output the export instructions like an echo")
 
 	flag.Parse()
 
@@ -75,6 +76,9 @@ func main() {
 		profileCreds = append(profileCreds, provider.ProfileCreds()...)
 	}
 	creds[profileName] = profileCreds
+	if echo {
+		config.GenerateExportContent(profileName, exportCreds)
+	}
 	config.CreateExecFile(execFile, profileName, exportCreds)
 	if err = config.SaveCreds(credsFile, creds); err != nil {
 		log.Fatalf("Error saving credentials in %s - %s", credsFile, err)
