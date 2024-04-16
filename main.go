@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 
 	"github.com/smorenodp/clusterprofile/config"
 	"github.com/smorenodp/clusterprofile/providers"
@@ -13,6 +14,11 @@ import (
 const (
 	clusterProfileEnv = "CLUSTERID_PROFILE"
 )
+
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
 
 func getOrElse(env, valueDefault string) string {
 	if value := os.Getenv("env"); value == "" {
@@ -24,7 +30,7 @@ func getOrElse(env, valueDefault string) string {
 
 func main() {
 	var configFolder, credsFile, profileName, execFile string
-	var echo bool
+	var echo, banner bool
 	var client *providers.VaultClient
 	var profileCreds []string
 	errorLog := log.New(os.Stderr, "", 0)
@@ -38,6 +44,7 @@ func main() {
 	flag.StringVar(&execFile, "exec", getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)), "Bash file to export the configuration for the profile.")
 	flag.StringVar(&profileName, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
 	flag.BoolVar(&echo, "echo", false, "Output the export instructions like an echo")
+	flag.BoolVar(&banner, "banner", false, "Show banner outputing the profile loaded")
 
 	flag.Parse()
 
@@ -92,8 +99,8 @@ func main() {
 	}
 
 	if echo {
-		config.GenerateExportContent(profileName, exportCreds)
+		config.GenerateExportContent(profileName, exportCreds, banner)
 	} else {
-		config.CreateExecFile(execFile, profileName, exportCreds)
+		config.CreateExecFile(execFile, profileName, exportCreds, banner)
 	}
 }

@@ -56,17 +56,18 @@ func (p *SecretProvider) GenerateCreds() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	envVars2Load := len(p.mapEnvVars)
-	for key, value := range secret.Data {
-		if envName, ok := p.config.Config.SecretMap[key]; ok {
-			envVar := p.mapEnvVars[envName]
-			envVar.value = value.(string)
-			p.mapEnvVars[envName] = envVar
-			envVars2Load--
+	if secret != nil {
+		envVars2Load := len(p.mapEnvVars)
+		for key, value := range secret.Data {
+			if envName, ok := p.config.Config.SecretMap[key]; ok {
+				envVar := p.mapEnvVars[envName]
+				envVar.value = value.(string)
+				p.mapEnvVars[envName] = envVar
+				envVars2Load--
+			}
 		}
+		p.load = (envVars2Load == 0)
 	}
-	p.load = (envVars2Load == 0)
 	return "", nil
 }
 
