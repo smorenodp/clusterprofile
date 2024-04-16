@@ -7,33 +7,33 @@ import (
 	"github.com/smorenodp/clusterprofile/config"
 )
 
-type OpenstackEnvVar struct {
+type InfobloxEnvVar struct {
 	regex *regexp.Regexp
 	value string
 }
 
-type OpenstackProvider struct {
+type InfobloxProvider struct {
 	client     *VaultClient
 	config     config.ProviderConfig
-	mapEnvVars map[string]OpenstackEnvVar
+	mapEnvVars map[string]InfobloxEnvVar
 	load       bool
 }
 
-func (p *OpenstackProvider) generateMap() {
-	mapEnvVars := map[string]OpenstackEnvVar{}
+func (p *InfobloxProvider) generateMap() {
+	mapEnvVars := map[string]InfobloxEnvVar{}
 	for _, envValue := range p.config.Config.SecretMap {
-		mapEnvVars[envValue] = OpenstackEnvVar{regex: regexp.MustCompile(fmt.Sprintf(dataRegex, envValue))}
+		mapEnvVars[envValue] = InfobloxEnvVar{regex: regexp.MustCompile(fmt.Sprintf(dataRegex, envValue))}
 	}
 	p.mapEnvVars = mapEnvVars
 }
 
-func NewOSProvider(client *VaultClient, config config.ProviderConfig) *OpenstackProvider {
-	p := OpenstackProvider{client: client, config: config}
+func NewInfobloxProvider(client *VaultClient, config config.ProviderConfig) *InfobloxProvider {
+	p := InfobloxProvider{client: client, config: config}
 	p.generateMap()
 	return &p
 }
 
-func (p *OpenstackProvider) LoadProfileCreds(info []string) {
+func (p *InfobloxProvider) LoadProfileCreds(info []string) {
 	envNames := []string{}
 	for key, _ := range p.mapEnvVars {
 		envNames = append(envNames, key)
@@ -51,7 +51,7 @@ func (p *OpenstackProvider) LoadProfileCreds(info []string) {
 	p.load = (len(envNames) == 0)
 }
 
-func (p *OpenstackProvider) credsFromSecret() (string, error) {
+func (p *InfobloxProvider) credsFromSecret() (string, error) {
 	secret, err := p.client.Logical().Read(p.config.Config.SecretPath)
 	if err != nil {
 		return "", err
@@ -70,7 +70,7 @@ func (p *OpenstackProvider) credsFromSecret() (string, error) {
 	return "", nil
 }
 
-func (p *OpenstackProvider) GenerateCreds() (string, error) {
+func (p *InfobloxProvider) GenerateCreds() (string, error) {
 	switch p.config.Method {
 	case "secret":
 		return p.credsFromSecret()
@@ -79,7 +79,7 @@ func (p *OpenstackProvider) GenerateCreds() (string, error) {
 	}
 }
 
-func (p *OpenstackProvider) ExportCreds() (export []string) {
+func (p *InfobloxProvider) ExportCreds() (export []string) {
 	for envName, envValue := range p.mapEnvVars {
 		if envValue.value != "" {
 			export = append(export, fmt.Sprintf("export %s=%s", envName, envValue.value))
@@ -89,11 +89,11 @@ func (p *OpenstackProvider) ExportCreds() (export []string) {
 	return
 }
 
-func (p *OpenstackProvider) CredsLoaded() bool {
+func (p *InfobloxProvider) CredsLoaded() bool {
 	return p.load
 }
 
-func (p *OpenstackProvider) ProfileCreds() (creds []string) {
+func (p *InfobloxProvider) ProfileCreds() (creds []string) {
 	for envName, envValue := range p.mapEnvVars {
 		if envValue.value != "" {
 			creds = append(creds, fmt.Sprintf("%s=%s", envName, envValue.value))
