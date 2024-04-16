@@ -74,7 +74,7 @@ func (p *SecretProvider) GenerateCreds() (string, error) {
 func (p *SecretProvider) ExportCreds() (export []string) {
 	for envName, envValue := range p.mapEnvVars {
 		if envValue.value != "" {
-			export = append(export, fmt.Sprintf("export %s=\"%s\"", envName, envValue.value))
+			export = append(export, fmt.Sprintf("export %s=%s", envName, envValue.value))
 		}
 
 	}
@@ -88,7 +88,7 @@ func (p *SecretProvider) CredsLoaded() bool {
 func (p *SecretProvider) ProfileCreds() (creds []string) {
 	for envName, envValue := range p.mapEnvVars {
 		if envValue.value != "" {
-			creds = append(creds, fmt.Sprintf("%s=\"%s\"", envName, envValue.value))
+			creds = append(creds, fmt.Sprintf("%s=%s", envName, envValue.value))
 		}
 	}
 	return

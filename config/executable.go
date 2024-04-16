@@ -28,7 +28,7 @@ const (
 {{ . }}
 {{ end }}
 `
-	bannerCommand = "testasta"
+	bannerCommand = "figlet"
 )
 
 func createDirectory(file string) {
