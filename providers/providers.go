@@ -23,6 +23,8 @@ func NewProvider(client *VaultClient, config config.ProviderConfig) Provider {
 		return NewConsulProvider(client, config)
 	case "nomad":
 		return NewNomadProvider(client, config)
+	case "openstack":
+		return NewOSProvider(client, config)
 	default:
 		return nil
 	}

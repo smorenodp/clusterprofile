@@ -13,9 +13,11 @@ const (
 )
 
 type InnerProviderConfig struct {
-	Role     string   `yaml:"role"`
-	Token    string   `yaml:"token"`
-	Policies []string `yaml:"policies"`
+	Role       string            `yaml:"role"`
+	Token      string            `yaml:"token"`
+	Policies   []string          `yaml:"policies"`
+	SecretPath string            `yaml:"path"`
+	SecretMap  map[string]string `yaml:"secret_map"`
 }
 
 type ProviderConfig struct {
