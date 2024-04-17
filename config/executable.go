@@ -8,9 +8,15 @@ import (
 )
 
 type ExecFile struct {
-	Profile       string
-	Creds         []string
-	BannerCommand string
+	Profile string
+	Creds   []string
+	Banner  Banner
+}
+
+type Banner struct {
+	Enable  bool
+	Command string
+	Args    string
 }
 
 func commandExists(cmd string) bool {
@@ -21,14 +27,13 @@ func commandExists(cmd string) bool {
 const (
 	templateFile string = `
 #!/bin/bash
-{{ if ne .BannerCommand "" }}
-{{ .BannerCommand }} {{ .Profile }} && echo
+{{ if .Banner.Enable }}
+{{ .Banner.Command }} {{ .Banner.Args }} {{ .Profile }} && echo
 {{ end }}
 {{ range .Creds }}
 {{ . }}
 {{ end }}
 `
-	bannerCommand = "figlet"
 )
 
 func createDirectory(file string) {
@@ -38,22 +43,22 @@ func createDirectory(file string) {
 	}
 }
 
-func CreateExecFile(execFile string, profile string, creds []string, banner bool) {
+func CreateExecFile(execFile string, profile string, creds []string, banner Banner) {
 	createDirectory(execFile)
 	f, _ := os.OpenFile(execFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	tpl, _ := template.New("exec").Parse(templateFile)
 	exec := ExecFile{Profile: profile, Creds: creds}
-	if banner && commandExists(bannerCommand) {
-		exec.BannerCommand = bannerCommand
+	if banner.Enable && commandExists(banner.Command) {
+		exec.Banner = banner
 	}
 	tpl.Execute(f, exec)
 }
 
-func GenerateExportContent(profile string, creds []string, banner bool) {
+func GenerateExportContent(profile string, creds []string, banner Banner) {
 	tpl, _ := template.New("exec").Parse(templateFile)
 	exec := ExecFile{Profile: profile, Creds: creds}
-	if banner && commandExists(bannerCommand) {
-		exec.BannerCommand = bannerCommand
+	if banner.Enable && commandExists(banner.Command) {
+		exec.Banner = banner
 	}
 	tpl.Execute(os.Stdout, exec)
 }

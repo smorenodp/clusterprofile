@@ -23,7 +23,7 @@ func getOrElse(env, valueDefault string) string {
 }
 
 func main() {
-	var configFolder, credsFile, profileName, execFile string
+	var configFolder, credsFile, profileName, execFile, bannerArgs, bannerCmd string
 	var echo, banner bool
 	var client *providers.VaultClient
 	var profileCreds []string
@@ -39,9 +39,12 @@ func main() {
 	flag.StringVar(&profileName, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
 	flag.BoolVar(&echo, "echo", false, "Output the export instructions like an echo")
 	flag.BoolVar(&banner, "banner", false, "Show banner outputing the profile loaded")
+	flag.StringVar(&bannerCmd, "banner-cmd", "figlet", "Command for the banner")
+	flag.StringVar(&bannerArgs, "banner-args", "", "Arguments for the banner")
 
 	flag.Parse()
 
+	configBanner := config.Banner{Enable: banner, Command: bannerCmd, Args: bannerArgs}
 	profiles, err := config.ReadConfig(configFolder)
 
 	if err != nil {
@@ -95,9 +98,9 @@ func main() {
 		}
 
 		if echo {
-			config.GenerateExportContent(profileName, exportCreds, banner)
+			config.GenerateExportContent(profileName, exportCreds, configBanner)
 		} else {
-			config.CreateExecFile(execFile, profileName, exportCreds, banner)
+			config.CreateExecFile(execFile, profileName, exportCreds, configBanner)
 		}
 	}
 }
