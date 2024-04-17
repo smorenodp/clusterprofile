@@ -75,7 +75,7 @@ func (p *TextProvider) GenerateCreds() (string, error) {
 
 func (p *TextProvider) ExportCreds() (export []string) {
 	for envName, envValue := range p.mapEnvVars {
-		export = append(export, fmt.Sprintf("export %s=%s", envName, envValue))
+		export = append(export, fmt.Sprintf("export %s=%q", envName, envValue))
 	}
 	return
 }
@@ -86,7 +86,7 @@ func (p *TextProvider) CredsLoaded() bool {
 
 func (p *TextProvider) ProfileCreds() (creds []string) {
 	for envName, envValue := range p.mapEnvVars {
-		creds = append(creds, fmt.Sprintf("export %s=%s", envName, envValue))
+		creds = append(creds, fmt.Sprintf("export %s=%q", envName, envValue))
 	}
 	return
 }

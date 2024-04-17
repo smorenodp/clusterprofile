@@ -80,9 +80,9 @@ func (p *NomadProvider) GenerateCreds() (string, error) {
 }
 
 func (p *NomadProvider) ExportCreds() []string {
-	return []string{fmt.Sprintf("export %s=\"%s\"", nomadEnvTokenVar, p.token),
-		fmt.Sprintf("export %s=\"%s\"", nomadEnvTTLVar, p.TTL.Format(layout)),
-		fmt.Sprintf("export %s=\"%s\"", nomadEnvAddrVar, p.config.Addr)}
+	return []string{fmt.Sprintf("export %s=%q", nomadEnvTokenVar, p.token),
+		fmt.Sprintf("export %s=%q", nomadEnvTTLVar, p.TTL.Format(layout)),
+		fmt.Sprintf("export %s=%q", nomadEnvAddrVar, p.config.Addr)}
 }
 
 func (p *NomadProvider) CredsLoaded() bool {
@@ -90,7 +90,7 @@ func (p *NomadProvider) CredsLoaded() bool {
 }
 
 func (p *NomadProvider) ProfileCreds() []string {
-	return []string{fmt.Sprintf("%s=\"%s\"", nomadEnvTokenVar, p.token),
-		fmt.Sprintf("%s=\"%s\"", nomadEnvTTLVar, p.TTL.Format(layout)),
-		fmt.Sprintf("%s=\"%s\"", nomadEnvAddrVar, p.config.Addr)}
+	return []string{fmt.Sprintf("%s=%q", nomadEnvTokenVar, p.token),
+		fmt.Sprintf("%s=%q", nomadEnvTTLVar, p.TTL.Format(layout)),
+		fmt.Sprintf("%s=%q", nomadEnvAddrVar, p.config.Addr)}
 }

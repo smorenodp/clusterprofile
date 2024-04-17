@@ -78,9 +78,9 @@ func (p *ConsulProvider) GenerateCreds() (string, error) {
 }
 
 func (p *ConsulProvider) ExportCreds() []string {
-	return []string{fmt.Sprintf("export %s=\"%s\"", consulEnvTokenVar, p.token),
-		fmt.Sprintf("export %s=\"%s\"", consulEnvTTLVar, p.TTL.Format(layout)),
-		fmt.Sprintf("export %s=\"%s\"", consulEnvAddrVar, p.config.Addr)}
+	return []string{fmt.Sprintf("export %s=%q", consulEnvTokenVar, p.token),
+		fmt.Sprintf("export %s=%q", consulEnvTTLVar, p.TTL.Format(layout)),
+		fmt.Sprintf("export %s=%q", consulEnvAddrVar, p.config.Addr)}
 }
 
 func (p *ConsulProvider) CredsLoaded() bool {
@@ -88,7 +88,7 @@ func (p *ConsulProvider) CredsLoaded() bool {
 }
 
 func (p *ConsulProvider) ProfileCreds() []string {
-	return []string{fmt.Sprintf("%s=\"%s\"", consulEnvTokenVar, p.token),
-		fmt.Sprintf("%s=\"%s\"", consulEnvTTLVar, p.TTL.Format(layout)),
-		fmt.Sprintf("%s=\"%s\"", consulEnvAddrVar, p.config.Addr)}
+	return []string{fmt.Sprintf("%s=%q", consulEnvTokenVar, p.token),
+		fmt.Sprintf("%s=%q", consulEnvTTLVar, p.TTL.Format(layout)),
+		fmt.Sprintf("%s=%q", consulEnvAddrVar, p.config.Addr)}
 }
