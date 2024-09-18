@@ -7,11 +7,23 @@ import (
 	"os"
 
 	"github.com/smorenodp/clusterprofile/config"
-	"github.com/smorenodp/clusterprofile/providers"
 )
 
 const (
 	clusterProfileEnv = "CLUSTERID_PROFILE"
+)
+
+type CommandArgs struct {
+	ProfilesConfig  string
+	CredentialsFile string
+	ExecutableFile  string
+	Profile         string
+	Echo            bool
+	Banner          config.Banner
+}
+
+var (
+	errorLog = log.New(os.Stderr, "", 0)
 )
 
 func getOrElse(env, valueDefault string) string {
@@ -22,85 +34,46 @@ func getOrElse(env, valueDefault string) string {
 	}
 }
 
-func main() {
-	var configFolder, credsFile, profileName, execFile, bannerArgs, bannerCmd string
-	var echo, banner bool
-	var client *providers.VaultClient
-	var profileCreds []string
-	errorLog := log.New(os.Stderr, "", 0)
-
+func parse() (args CommandArgs) {
+	var banner config.Banner
 	home, err := os.UserHomeDir()
+
 	if err != nil {
 		log.Fatal("Error obtaining home directory.")
 	}
-	flag.StringVar(&configFolder, "profileFolder", getOrElse("CLUSTERID_CONFIG_FOLDER", fmt.Sprintf("%s/.clusterid/profiles/", home)), "Config folder for program.")
-	flag.StringVar(&credsFile, "creds", getOrElse("CLUSTERID_PROFILE_FILE", fmt.Sprintf("%s/.clusterid/credentials", home)), "Creds file for program.")
-	flag.StringVar(&execFile, "exec", getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)), "Bash file to export the configuration for the profile.")
-	flag.StringVar(&profileName, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
-	flag.BoolVar(&echo, "echo", false, "Output the export instructions like an echo")
-	flag.BoolVar(&banner, "banner", false, "Show banner outputing the profile loaded")
-	flag.StringVar(&bannerCmd, "banner-cmd", "figlet", "Command for the banner")
-	flag.StringVar(&bannerArgs, "banner-args", "", "Arguments for the banner")
+
+	flag.StringVar(&args.ProfilesConfig, "profileFolder", getOrElse("CLUSTERID_CONFIG_FOLDER", fmt.Sprintf("%s/.clusterid/profiles/", home)), "Config folder for program.")
+	flag.StringVar(&args.CredentialsFile, "creds", getOrElse("CLUSTERID_PROFILE_FILE", fmt.Sprintf("%s/.clusterid/credentials", home)), "Creds file for program.")
+	flag.StringVar(&args.ExecutableFile, "exec", getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)), "Bash file to export the configuration for the profile.")
+	flag.StringVar(&args.Profile, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
+	flag.BoolVar(&args.Echo, "echo", false, "Output the export instructions like an echo")
+	flag.BoolVar(&banner.Enable, "banner", false, "Show banner outputing the profile loaded")
+	flag.StringVar(&banner.Command, "banner-cmd", "figlet", "Command for the banner")
+	flag.StringVar(&banner.Args, "banner-args", "", "Arguments for the banner")
 
 	flag.Parse()
+	args.Banner = banner
+	return
+}
 
-	configBanner := config.Banner{Enable: banner, Command: bannerCmd, Args: bannerArgs}
-	profiles, err := config.ReadConfig(configFolder)
+func main() {
 
+	args := parse()
+
+	cp, err := NewClusterProfile(args)
+	fmt.Println(err)
 	if err != nil {
-		errorLog.Fatalf("Error parsing config file from folder %s - %s\n", configFolder, err)
+		log.Fatalf("Error generating clusterprofile - %s", err)
+	}
+	cp.Run()
+
+	if err = config.SaveCreds(args.CredentialsFile, cp.profilesCreds); err != nil {
+		log.Fatalf("Error saving credentials in %s - %s", args.CredentialsFile, err)
 	}
 
-	creds, err := config.LoadCreds(credsFile)
-	if err != nil {
-		errorLog.Fatalf("Error parsing creds file from %s\n", credsFile)
-	}
-
-	if c, ok := profiles[profileName]; !ok {
-		errorLog.Fatalf("Error loading profile %s, not found in configuration folder %s\n", profileName, configFolder)
+	if args.Echo {
+		config.GenerateExportContent(args.Profile, cp.profile.Export, args.Banner)
 	} else {
-		client, err = providers.NewVaultClient(c.Vault)
-		client.LoadProfileCreds(creds[profileName])
-		if c.Vault.PivotProfile != "" {
-			if clusterConfig, ok := profiles[c.Vault.PivotProfile]; !ok {
-				log.Fatalf("Error loading profile pivoting %s in profile %s configuration", c.Vault.PivotProfile, c.Name)
-			} else {
-				client = client.WithPivotRole(clusterConfig.Vault, creds[c.Vault.PivotProfile])
-				creds[c.Vault.PivotProfile] = client.ProfileCreds()
-				client.GenerateCreds()
-			}
-		} else {
-			client.GenerateCreds()
-		}
-		if err != nil {
-			log.Fatal("Vault creation failed")
-		}
-		exportCreds := []string{fmt.Sprintf("export %s=%s", clusterProfileEnv, profileName)}
-		profileCreds = client.ProfileCreds()
-		exportCreds = client.ExportCreds()
-		for _, p := range c.Providers {
-			provider := providers.NewProvider(client, p)
-			if provider != nil {
-				provider.LoadProfileCreds(creds[profileName])
-				if !provider.CredsLoaded() {
-					provider.GenerateCreds()
-				}
-				exportCreds = append(exportCreds, provider.ExportCreds()...)
-				profileCreds = append(profileCreds, provider.ProfileCreds()...)
-			} else {
-				errorLog.Println("Provider of type %s not implemented\n", p.Type)
-			}
-		}
-		creds[profileName] = profileCreds
-
-		if err = config.SaveCreds(credsFile, creds); err != nil {
-			log.Fatalf("Error saving credentials in %s - %s", credsFile, err)
-		}
-
-		if echo {
-			config.GenerateExportContent(profileName, exportCreds, configBanner)
-		} else {
-			config.CreateExecFile(execFile, profileName, exportCreds, configBanner)
-		}
+		config.CreateExecFile(args.ExecutableFile, args.Profile, cp.profile.Export, args.Banner)
 	}
 }

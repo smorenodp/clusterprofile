@@ -4,6 +4,7 @@ go 1.22.2
 
 require (
 	github.com/hashicorp/vault/api v1.12.2
+	github.com/tobischo/gokeepasslib/v3 v3.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -22,8 +23,10 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
-	golang.org/x/crypto v0.19.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
+	github.com/tobischo/argon2 v0.1.0 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 )

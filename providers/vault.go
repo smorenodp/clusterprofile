@@ -21,12 +21,14 @@ const (
 type VaultClient struct {
 	config config.VaultConfig
 	TTL    time.Time
+	Pivot  *VaultClient
 	*vault.Client
 }
 
-func (c *VaultClient) LoadProfileCreds(info []string) {
+func (c *VaultClient) LoadProfileCreds(info []string) bool {
 	var token string
 	var ttl time.Time
+	loaded := false
 	tokenRegex := regexp.MustCompile(fmt.Sprintf(dataRegex, vaultEnvTokenVar))
 	ttlRegex := regexp.MustCompile(fmt.Sprintf(dataRegex, vaultEnvTTLVar))
 	for _, i := range info {
@@ -36,11 +38,13 @@ func (c *VaultClient) LoadProfileCreds(info []string) {
 			ttl, _ = time.Parse(layout, matches[1])
 		}
 	}
+
 	if time.Now().Before(ttl) {
 		c.SetToken(token)
 		c.TTL = ttl
+		loaded = true
 	}
-
+	return loaded
 }
 
 func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
@@ -80,13 +84,15 @@ func (c *VaultClient) loginOidc() error {
 func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []string) *VaultClient {
 	pivotC := &VaultClient{config: pivotConfig, Client: c.Client}
 	pivotC.LoadProfileCreds(profile)
-	pivotC.GenerateCreds()
+	pivotC.GenerateCreds() //TODO: Only if not loaded
 	pivotC.config = c.config
+	c.Pivot = pivotC
 	return pivotC
 }
 
 func (c *VaultClient) loginToken() error {
 	if c.config.Config.Role != "" {
+		//TODO: Check if policies exist or not
 		tokenSecret, err := c.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
 		if err == nil {
 			c.SetToken(tokenSecret.Auth.ClientToken)
@@ -103,6 +109,7 @@ func (c *VaultClient) loginToken() error {
 
 func (c *VaultClient) GenerateCreds() (string, error) {
 	var err error
+	//TODO: Check cause this can create token all day
 	if c.config.Method == "oidc" && c.Token() == "" {
 		err = c.loginOidc()
 	} else if c.config.Method == "token" {
