@@ -54,6 +54,7 @@ func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
 	}
 	client, err := vault.NewClient(defaultConfig)
 	client.SetToken("")
+	client.SetClientTimeout(2 * time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +64,16 @@ func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
 
 func (c *VaultClient) loginOidc() error {
 	os.Setenv("VAULT_ADDR", c.config.Addr)
+	os.Setenv("VAULT_CLIENT_TIMEOUT", "2") //We set the timeout to 2, make this configurable
 	cmd := exec.Command("vault", "login", "-method", "oidc", "-token-only")
-	var outb bytes.Buffer
+	var outb, errb bytes.Buffer
 	cmd.Stdout = &outb
+	cmd.Stderr = &errb
 	err := cmd.Run()
 	if err != nil {
+		if errb.String() != "" {
+			err = fmt.Errorf("%s - %s", err, errb.String())
+		}
 		return err
 	}
 	token := outb.String()
@@ -77,17 +83,23 @@ func (c *VaultClient) loginOidc() error {
 		return err
 	}
 	duration, _ := secret.TokenTTL()
+	fmt.Println(duration)
+	fmt.Println(time.Now())
 	c.TTL = time.Now().Add(duration)
+	fmt.Println(c.TTL)
 	return nil
 }
 
-func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []string) *VaultClient {
+func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []string) (*VaultClient, error) {
 	pivotC := &VaultClient{config: pivotConfig, Client: c.Client}
 	pivotC.LoadProfileCreds(profile)
-	pivotC.GenerateCreds() //TODO: Only if not loaded
+	_, err := pivotC.GenerateCreds() //TODO: Only if not loaded
+	if err != nil {
+		return nil, err
+	}
 	pivotC.config = c.config
 	c.Pivot = pivotC
-	return pivotC
+	return pivotC, nil
 }
 
 func (c *VaultClient) loginToken() error {
@@ -96,8 +108,11 @@ func (c *VaultClient) loginToken() error {
 		tokenSecret, err := c.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
 		if err == nil {
 			c.SetToken(tokenSecret.Auth.ClientToken)
+			fmt.Println("lease ", tokenSecret.Auth.LeaseDuration)
 			dur, _ := time.ParseDuration(fmt.Sprintf("%ds", tokenSecret.Auth.LeaseDuration))
+			fmt.Println("Duration ", dur)
 			c.TTL = time.Now().Add(dur)
+			fmt.Println(c.TTL)
 		} else {
 			return err
 		}

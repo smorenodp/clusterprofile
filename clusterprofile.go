@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/smorenodp/clusterprofile/config"
 	"github.com/smorenodp/clusterprofile/providers"
@@ -33,14 +31,13 @@ func NewClusterProfile(args CommandArgs) (*ClusterProfile, error) {
 	}
 	p := Profile{Name: args.Profile, Creds: []string{}, Export: []string{fmt.Sprintf("export %s=%s", clusterProfileEnv, args.Profile)}}
 	cluster := &ClusterProfile{profilesConfig: profiles, profile: p, profilesCreds: creds}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-	err = cluster.generateVaultClient(ctx)
+
+	err = cluster.generateVaultClient()
 	return cluster, err
 }
 
 // TODO: Refactor this function
-func (cp *ClusterProfile) generateVaultClient(ctx context.Context) (err error) {
+func (cp *ClusterProfile) generateVaultClient() (err error) {
 	var profile config.ClusterConfig
 	var creds []string
 	var client *providers.VaultClient
@@ -50,11 +47,6 @@ func (cp *ClusterProfile) generateVaultClient(ctx context.Context) (err error) {
 	client, err = providers.NewVaultClient(profile.Vault)
 
 	cp.vaultClient = client
-	fmt.Println(client.Client)
-	if client.Client == nil {
-		fmt.Println("Entering error")
-		return fmt.Errorf("error creating vault client")
-	}
 
 	if loaded := client.LoadProfileCreds(creds); loaded {
 		cp.profile.Export = append(cp.profile.Export, cp.vaultClient.ExportCreds()...)
@@ -68,10 +60,20 @@ func (cp *ClusterProfile) generateVaultClient(ctx context.Context) (err error) {
 			return
 		}
 
-		client.WithPivotRole(pivotConfig.Vault, pivotCreds).GenerateCreds()
+		pivotClient, err := client.WithPivotRole(pivotConfig.Vault, pivotCreds)
+		if err != nil {
+			return err
+		}
+		_, err = pivotClient.GenerateCreds()
+		if err != nil {
+			return err
+		}
 		cp.profilesCreds[profile.Vault.PivotProfile] = client.Pivot.ProfileCreds()
 	} else {
-		client.GenerateCreds()
+		_, err = client.GenerateCreds()
+		if err != nil {
+			return err
+		}
 	}
 	if cp.vaultClient.CredsLoaded() {
 		cp.profile.Export = append(cp.profile.Export, cp.vaultClient.ExportCreds()...)
