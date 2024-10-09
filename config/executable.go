@@ -16,7 +16,7 @@ type ExecFile struct {
 type Banner struct {
 	Enable  bool
 	Command string
-	Args    string
+	Args    []string
 }
 
 func commandExists(cmd string) bool {

@@ -21,12 +21,14 @@ const (
 type VaultClient struct {
 	config config.VaultConfig
 	TTL    time.Time
+	Pivot  *VaultClient
 	*vault.Client
 }
 
-func (c *VaultClient) LoadProfileCreds(info []string) {
+func (c *VaultClient) LoadProfileCreds(info []string) bool {
 	var token string
 	var ttl time.Time
+	loaded := false
 	tokenRegex := regexp.MustCompile(fmt.Sprintf(dataRegex, vaultEnvTokenVar))
 	ttlRegex := regexp.MustCompile(fmt.Sprintf(dataRegex, vaultEnvTTLVar))
 	for _, i := range info {
@@ -36,11 +38,13 @@ func (c *VaultClient) LoadProfileCreds(info []string) {
 			ttl, _ = time.Parse(layout, matches[1])
 		}
 	}
+
 	if time.Now().Before(ttl) {
 		c.SetToken(token)
 		c.TTL = ttl
+		loaded = true
 	}
-
+	return loaded
 }
 
 func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
@@ -50,6 +54,7 @@ func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
 	}
 	client, err := vault.NewClient(defaultConfig)
 	client.SetToken("")
+	client.SetClientTimeout(2 * time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +64,16 @@ func NewVaultClient(config config.VaultConfig) (*VaultClient, error) {
 
 func (c *VaultClient) loginOidc() error {
 	os.Setenv("VAULT_ADDR", c.config.Addr)
+	os.Setenv("VAULT_CLIENT_TIMEOUT", "2") //We set the timeout to 2, make this configurable
 	cmd := exec.Command("vault", "login", "-method", "oidc", "-token-only")
-	var outb bytes.Buffer
+	var outb, errb bytes.Buffer
 	cmd.Stdout = &outb
+	cmd.Stderr = &errb
 	err := cmd.Run()
 	if err != nil {
+		if errb.String() != "" {
+			err = fmt.Errorf("%s - %s", err, errb.String())
+		}
 		return err
 	}
 	token := outb.String()
@@ -77,17 +87,26 @@ func (c *VaultClient) loginOidc() error {
 	return nil
 }
 
-func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []string) *VaultClient {
+func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []string) (*VaultClient, error) {
 	pivotC := &VaultClient{config: pivotConfig, Client: c.Client}
 	pivotC.LoadProfileCreds(profile)
-	pivotC.GenerateCreds()
+	_, err := pivotC.GenerateCreds() //TODO: Only if not loaded
+	if err != nil {
+		return nil, err
+	}
 	pivotC.config = c.config
-	return pivotC
+	c.Pivot = pivotC
+	return pivotC, nil
 }
 
 func (c *VaultClient) loginToken() error {
 	if c.config.Config.Role != "" {
-		tokenSecret, err := c.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
+		client := c
+		if c.Pivot != nil {
+			client = c.Pivot
+		}
+		//TODO: Check if policies exist or not
+		tokenSecret, err := client.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
 		if err == nil {
 			c.SetToken(tokenSecret.Auth.ClientToken)
 			dur, _ := time.ParseDuration(fmt.Sprintf("%ds", tokenSecret.Auth.LeaseDuration))
@@ -98,11 +117,13 @@ func (c *VaultClient) loginToken() error {
 	} else if c.config.Config.Token != "" {
 		c.SetToken(c.config.Config.Token)
 	}
+
 	return nil
 }
 
 func (c *VaultClient) GenerateCreds() (string, error) {
 	var err error
+	//TODO: Check cause this can create token all day
 	if c.config.Method == "oidc" && c.Token() == "" {
 		err = c.loginOidc()
 	} else if c.config.Method == "token" {

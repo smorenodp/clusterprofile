@@ -27,6 +27,8 @@ func NewProvider(client *VaultClient, config config.ProviderConfig) Provider {
 		return NewSecretProvider(client, config)
 	case "text":
 		return NewTextProvider(client, config)
+	case "keepass":
+		return NewKeePassProvider(client, config)
 	default:
 		return nil
 	}

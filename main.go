@@ -1,17 +1,30 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/smorenodp/clusterprofile/config"
-	"github.com/smorenodp/clusterprofile/providers"
+	"github.com/urfave/cli/v3"
 )
 
 const (
 	clusterProfileEnv = "CLUSTERID_PROFILE"
+)
+
+type CommandArgs struct {
+	ProfilesConfig  string
+	CredentialsFile string
+	ExecutableFile  string
+	Profile         string
+	Echo            bool
+	Banner          config.Banner
+}
+
+var (
+	errorLog = log.New(os.Stderr, "", 0)
 )
 
 func getOrElse(env, valueDefault string) string {
@@ -22,85 +35,159 @@ func getOrElse(env, valueDefault string) string {
 	}
 }
 
-func main() {
-	var configFolder, credsFile, profileName, execFile, bannerArgs, bannerCmd string
-	var echo, banner bool
-	var client *providers.VaultClient
-	var profileCreds []string
-	errorLog := log.New(os.Stderr, "", 0)
+func load(args CommandArgs) error {
+	cp, err := NewClusterProfile(args)
+	if err != nil {
+		return fmt.Errorf("error generating clusterprofile - %s", err)
+	}
+	cp.Run()
 
+	if err = config.SaveCreds(args.CredentialsFile, cp.profilesCreds); err != nil {
+		return fmt.Errorf("error saving credentials in %s - %s", args.CredentialsFile, err)
+	}
+
+	if args.Echo {
+		config.GenerateExportContent(args.Profile, cp.profile.Export, args.Banner)
+	} else {
+		config.CreateExecFile(args.ExecutableFile, args.Profile, cp.profile.Export, args.Banner)
+	}
+	return nil
+}
+
+func show(args CommandArgs) error {
+
+	cp, err := NewClusterProfile(args)
+	if err != nil {
+		return fmt.Errorf("error generating clusterprofile - %s", err)
+	}
+	_, creds, err := cp.GetProfile(args.Profile)
+
+	if err != nil {
+		return fmt.Errorf("error getting profile - %s", err)
+	}
+	if len(creds) > 0 {
+		fmt.Printf("[%s]\n", args.Profile)
+		for _, c := range creds {
+			fmt.Println(c)
+		}
+	}
+
+	return nil
+}
+
+func remove(args CommandArgs) error {
+
+	cp, err := NewClusterProfile(args)
+	if err != nil {
+		return fmt.Errorf("error generating clusterprofile - %s", err)
+	}
+	err = cp.RemoveProfile(args.Profile)
+
+	if err != nil {
+		return fmt.Errorf("error removing profile - %s", err)
+	}
+
+	if err = config.SaveCreds(args.CredentialsFile, cp.profilesCreds); err != nil {
+		return fmt.Errorf("error saving credentials in %s - %s", args.CredentialsFile, err)
+	}
+
+	return nil
+}
+
+func main() {
+	var args CommandArgs = CommandArgs{}
 	home, err := os.UserHomeDir()
+
 	if err != nil {
 		log.Fatal("Error obtaining home directory.")
 	}
-	flag.StringVar(&configFolder, "profileFolder", getOrElse("CLUSTERID_CONFIG_FOLDER", fmt.Sprintf("%s/.clusterid/profiles/", home)), "Config folder for program.")
-	flag.StringVar(&credsFile, "creds", getOrElse("CLUSTERID_PROFILE_FILE", fmt.Sprintf("%s/.clusterid/credentials", home)), "Creds file for program.")
-	flag.StringVar(&execFile, "exec", getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)), "Bash file to export the configuration for the profile.")
-	flag.StringVar(&profileName, "profile", getOrElse("PROFILE_NAME", ""), "Name of the profile to load")
-	flag.BoolVar(&echo, "echo", false, "Output the export instructions like an echo")
-	flag.BoolVar(&banner, "banner", false, "Show banner outputing the profile loaded")
-	flag.StringVar(&bannerCmd, "banner-cmd", "figlet", "Command for the banner")
-	flag.StringVar(&bannerArgs, "banner-args", "", "Arguments for the banner")
 
-	flag.Parse()
-
-	configBanner := config.Banner{Enable: banner, Command: bannerCmd, Args: bannerArgs}
-	profiles, err := config.ReadConfig(configFolder)
-
-	if err != nil {
-		errorLog.Fatalf("Error parsing config file from folder %s - %s\n", configFolder, err)
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "profileFolder",
+				Aliases:     []string{"pf"},
+				Value:       getOrElse("CLUSTERID_CONFIG_FOLDER", fmt.Sprintf("%s/.clusterid/profiles/", home)),
+				Usage:       "Config folder for program.",
+				Destination: &args.ProfilesConfig,
+			},
+			&cli.StringFlag{
+				Name:        "creds",
+				Aliases:     []string{"c"},
+				Value:       getOrElse("CLUSTERID_PROFILE_FILE", fmt.Sprintf("%s/.clusterid/credentials", home)),
+				Usage:       "Creds file for program.",
+				Destination: &args.CredentialsFile,
+			},
+			&cli.StringFlag{
+				Name:        "exec",
+				Aliases:     []string{"e"},
+				Value:       getOrElse("CLUSTERID_EXEC_FILE", fmt.Sprintf("%s/.clusterid/export.sh", home)),
+				Usage:       "Bash file to export the configuration for the profile.",
+				Destination: &args.ExecutableFile,
+			},
+			&cli.StringFlag{
+				Name:        "profile",
+				Aliases:     []string{"p"},
+				Value:       getOrElse("PROFILE_NAME", ""),
+				Usage:       "Name of the profile to load",
+				Destination: &args.Profile,
+			},
+			&cli.BoolFlag{
+				Name:        "echo",
+				Value:       false,
+				Usage:       "Output the export instructions like an echo",
+				Destination: &args.Echo,
+			},
+			&cli.BoolFlag{
+				Name:        "banner",
+				Aliases:     []string{"b"},
+				Value:       false,
+				Usage:       "Show banner outputing the profile loaded",
+				Destination: &args.Banner.Enable,
+			},
+			&cli.StringFlag{
+				Name:        "banner-cmd",
+				Aliases:     []string{"bc"},
+				Value:       "figlet",
+				Usage:       "Command for the banner",
+				Destination: &args.Banner.Command,
+			}, &cli.StringSliceFlag{
+				Name:        "banner-args",
+				Aliases:     []string{"ba"},
+				Usage:       "Arguments for the banner",
+				Destination: &args.Banner.Args,
+			},
+		},
+		DefaultCommand: "load",
+		Commands: []*cli.Command{
+			{
+				Name:    "load",
+				Aliases: []string{"l"},
+				Usage:   "Load credentials for profile. Generate them if they don't exist or are expired.",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return load(args)
+				},
+			},
+			{
+				Name:    "show",
+				Aliases: []string{"s"},
+				Usage:   "Show credencials if exist",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return show(args)
+				},
+			},
+			{
+				Name:    "remove",
+				Aliases: []string{"r"},
+				Usage:   "Remove credencials if exist",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return remove(args)
+				},
+			},
+		},
 	}
 
-	creds, err := config.LoadCreds(credsFile)
-	if err != nil {
-		errorLog.Fatalf("Error parsing creds file from %s\n", credsFile)
-	}
-
-	if c, ok := profiles[profileName]; !ok {
-		errorLog.Fatalf("Error loading profile %s, not found in configuration folder %s\n", profileName, configFolder)
-	} else {
-		client, err = providers.NewVaultClient(c.Vault)
-		client.LoadProfileCreds(creds[profileName])
-		if c.Vault.PivotProfile != "" {
-			if clusterConfig, ok := profiles[c.Vault.PivotProfile]; !ok {
-				log.Fatalf("Error loading profile pivoting %s in profile %s configuration", c.Vault.PivotProfile, c.Name)
-			} else {
-				client = client.WithPivotRole(clusterConfig.Vault, creds[c.Vault.PivotProfile])
-				creds[c.Vault.PivotProfile] = client.ProfileCreds()
-				client.GenerateCreds()
-			}
-		} else {
-			client.GenerateCreds()
-		}
-		if err != nil {
-			log.Fatal("Vault creation failed")
-		}
-		exportCreds := []string{fmt.Sprintf("export %s=%s", clusterProfileEnv, profileName)}
-		profileCreds = client.ProfileCreds()
-		exportCreds = client.ExportCreds()
-		for _, p := range c.Providers {
-			provider := providers.NewProvider(client, p)
-			if provider != nil {
-				provider.LoadProfileCreds(creds[profileName])
-				if !provider.CredsLoaded() {
-					provider.GenerateCreds()
-				}
-				exportCreds = append(exportCreds, provider.ExportCreds()...)
-				profileCreds = append(profileCreds, provider.ProfileCreds()...)
-			} else {
-				errorLog.Println("Provider of type %s not implemented\n", p.Type)
-			}
-		}
-		creds[profileName] = profileCreds
-
-		if err = config.SaveCreds(credsFile, creds); err != nil {
-			log.Fatalf("Error saving credentials in %s - %s", credsFile, err)
-		}
-
-		if echo {
-			config.GenerateExportContent(profileName, exportCreds, configBanner)
-		} else {
-			config.CreateExecFile(execFile, profileName, exportCreds, configBanner)
-		}
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		log.Fatal(err)
 	}
 }

@@ -17,9 +17,11 @@ type InnerProviderConfig struct {
 	Token      string            `yaml:"token"`
 	Policies   []string          `yaml:"policies"`
 	SecretPath string            `yaml:"path"`
+	Group      string            `yaml:"group"`
 	SecretMap  map[string]string `yaml:"secret_map"`
 	File       string            `yaml:"file"`
 	Data       string            `yaml:"data"`
+	Password   string            `yaml:"password"`
 }
 
 type ProviderConfig struct {
