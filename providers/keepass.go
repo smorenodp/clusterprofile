@@ -24,6 +24,7 @@ func NewKeePassProvider(vault *VaultClient, config config.ProviderConfig) *Keepa
 	db := gokeepasslib.NewDatabase()
 	db.Credentials = gokeepasslib.NewPasswordCredentials(config.Config.Password)
 	err = gokeepasslib.NewDecoder(file).Decode(db)
+	db.UnlockProtectedEntries()
 	if err != nil {
 		return nil
 	}
@@ -79,6 +80,7 @@ func (k *KeepassProvider) ExportCreds() []string {
 }
 
 func (k *KeepassProvider) LoadProfileCreds(info []string) {
+
 	values := make([]string, 0, len(k.config.Config.SecretMap))
 	for _, v2 := range k.config.Config.SecretMap {
 		values = append(values, v2)
@@ -103,7 +105,7 @@ func (k *KeepassProvider) ProfileCreds() []string {
 }
 
 func (k *KeepassProvider) CredsLoaded() bool {
-	for _, os := range k.config.Config.SecretMap {
+	for os, _ := range k.config.Config.SecretMap {
 		if _, ok := k.data[os]; !ok {
 			return false
 		}
