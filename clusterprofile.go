@@ -60,15 +60,15 @@ func (cp *ClusterProfile) generateVaultClient() (err error) {
 			return
 		}
 
-		pivotClient, err := client.WithPivotRole(pivotConfig.Vault, pivotCreds)
-		if err != nil {
-			return err
-		}
-		_, err = pivotClient.GenerateCreds()
-		if err != nil {
-			return err
-		}
+		_, err := client.WithPivotRole(pivotConfig.Vault, pivotCreds)
 		cp.profilesCreds[profile.Vault.PivotProfile] = client.Pivot.ProfileCreds()
+		if err != nil {
+			return err
+		}
+		_, err = client.GenerateCreds()
+		if err != nil {
+			return err
+		}
 	} else {
 		_, err = client.GenerateCreds()
 		if err != nil {
@@ -89,6 +89,17 @@ func (cp *ClusterProfile) GetProfile(name string) (pConfig config.ClusterConfig,
 		return
 	}
 	pCreds = cp.profilesCreds[name]
+
+	return
+}
+
+func (cp *ClusterProfile) RemoveProfile(name string) (err error) {
+	var ok bool
+	if _, ok = cp.profilesCreds[name]; !ok {
+		err = fmt.Errorf("Error removing profile config %s", name)
+		return
+	}
+	delete(cp.profilesCreds, name)
 
 	return
 }

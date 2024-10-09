@@ -53,7 +53,6 @@ func getGroup(groups []gokeepasslib.Group, name string) (result *gokeepasslib.Gr
 	innerGroups := strings.Split(name, ".")
 	for _, iGroup := range innerGroups {
 		for _, group := range groups {
-			fmt.Println("Checking group ", group.Name, " with inner ", iGroup)
 			if group.Name == iGroup {
 				result = &group
 				groups = group.Groups

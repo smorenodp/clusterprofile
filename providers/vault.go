@@ -83,10 +83,7 @@ func (c *VaultClient) loginOidc() error {
 		return err
 	}
 	duration, _ := secret.TokenTTL()
-	fmt.Println(duration)
-	fmt.Println(time.Now())
 	c.TTL = time.Now().Add(duration)
-	fmt.Println(c.TTL)
 	return nil
 }
 
@@ -104,21 +101,23 @@ func (c *VaultClient) WithPivotRole(pivotConfig config.VaultConfig, profile []st
 
 func (c *VaultClient) loginToken() error {
 	if c.config.Config.Role != "" {
+		client := c
+		if c.Pivot != nil {
+			client = c.Pivot
+		}
 		//TODO: Check if policies exist or not
-		tokenSecret, err := c.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
+		tokenSecret, err := client.Auth().Token().CreateWithRole(&vault.TokenCreateRequest{Policies: c.config.Config.Policies}, c.config.Config.Role)
 		if err == nil {
 			c.SetToken(tokenSecret.Auth.ClientToken)
-			fmt.Println("lease ", tokenSecret.Auth.LeaseDuration)
 			dur, _ := time.ParseDuration(fmt.Sprintf("%ds", tokenSecret.Auth.LeaseDuration))
-			fmt.Println("Duration ", dur)
 			c.TTL = time.Now().Add(dur)
-			fmt.Println(c.TTL)
 		} else {
 			return err
 		}
 	} else if c.config.Config.Token != "" {
 		c.SetToken(c.config.Config.Token)
 	}
+
 	return nil
 }
 
