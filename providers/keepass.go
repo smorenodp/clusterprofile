@@ -17,12 +17,19 @@ type KeepassProvider struct {
 }
 
 func NewKeePassProvider(vault *VaultClient, config config.ProviderConfig) *KeepassProvider {
+	var password string
 	file, err := os.Open(config.Config.File)
 	if err != nil {
 		return nil
 	}
 	db := gokeepasslib.NewDatabase()
-	db.Credentials = gokeepasslib.NewPasswordCredentials(config.Config.Password)
+	if config.Config.Password != "" {
+		password = os.Getenv(config.Config.Password)
+	} else {
+		fmt.Print("Enter password for Keepass > ")
+		fmt.Scanln(&password)
+	}
+	db.Credentials = gokeepasslib.NewPasswordCredentials(password)
 	err = gokeepasslib.NewDecoder(file).Decode(db)
 	db.UnlockProtectedEntries()
 	if err != nil {

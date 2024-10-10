@@ -32,12 +32,11 @@ func NewClusterProfile(args CommandArgs) (*ClusterProfile, error) {
 	p := Profile{Name: args.Profile, Creds: []string{}, Export: []string{fmt.Sprintf("export %s=%s", clusterProfileEnv, args.Profile)}}
 	cluster := &ClusterProfile{profilesConfig: profiles, profile: p, profilesCreds: creds}
 
-	err = cluster.generateVaultClient()
 	return cluster, err
 }
 
 // TODO: Refactor this function
-func (cp *ClusterProfile) generateVaultClient() (err error) {
+func (cp *ClusterProfile) GenerateVaultClient() (err error) {
 	var profile config.ClusterConfig
 	var creds []string
 	var client *providers.VaultClient

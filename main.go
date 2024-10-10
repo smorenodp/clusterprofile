@@ -40,6 +40,12 @@ func load(args CommandArgs) error {
 	if err != nil {
 		return fmt.Errorf("error generating clusterprofile - %s", err)
 	}
+
+	err = cp.GenerateVaultClient()
+	if err != nil {
+		return fmt.Errorf("error generating vault client - %s", err)
+	}
+
 	cp.Run()
 
 	if err = config.SaveCreds(args.CredentialsFile, cp.profilesCreds); err != nil {
