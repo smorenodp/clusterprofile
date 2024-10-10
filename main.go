@@ -40,6 +40,12 @@ func load(args CommandArgs) error {
 	if err != nil {
 		return fmt.Errorf("error generating clusterprofile - %s", err)
 	}
+
+	err = cp.GenerateVaultClient()
+	if err != nil {
+		return fmt.Errorf("error generating vault client - %s", err)
+	}
+
 	cp.Run()
 
 	if err = config.SaveCreds(args.CredentialsFile, cp.profilesCreds); err != nil {
@@ -165,7 +171,6 @@ func main() {
 				Aliases: []string{"l"},
 				Usage:   "Load credentials for profile. Generate them if they don't exist or are expired.",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					fmt.Println("Load")
 					return load(args)
 				},
 			},
@@ -174,7 +179,6 @@ func main() {
 				Aliases: []string{"s"},
 				Usage:   "Show credencials if exist",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					fmt.Println("Show")
 					return show(args)
 				},
 			},
@@ -183,7 +187,6 @@ func main() {
 				Aliases: []string{"r"},
 				Usage:   "Remove credencials if exist",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					fmt.Println("Remove")
 					return remove(args)
 				},
 			},
